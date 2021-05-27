@@ -25,6 +25,7 @@ const useStyles = makeStyles({
   grid: {
     height: "100vh",
     display: "flex",
+    flexWrap: "wrap",
   },
   controls: {
     backgroundColor: "white",
@@ -56,8 +57,6 @@ const iceServers = {
 let id;
 let videoGrid;
 let localStream;
-let remoteStream;
-let isRoomCreator;
 
 let socket;
 let roomId;
@@ -72,8 +71,6 @@ const Meeting = () => {
   const [mic, setMic] = useState(true);
   const [cam, setCam] = useState(true);
 
-  const [connection, setConnection] = useState({});
-
   const micButton = useRef(null);
   const camButton = useRef(null);
   // const flipButton = useRef(null);
@@ -82,21 +79,6 @@ const Meeting = () => {
 
   const handleClick = (message, variant) => {
     enqueueSnackbar(message, { variant });
-  };
-
-  const toggleMic = (stream) => {
-    const enabled = stream.getTracks()[0].enabled;
-    stream.getTracks()[0].enabled = !enabled;
-    setMic(!enabled);
-  };
-
-  const toggleCam = (stream) => {
-    const enabled = stream.getTracks()[1].enabled;
-    stream.getTracks()[1].enabled = !enabled;
-    setCam(!enabled);
-
-    // if (flipButton.current)
-    //   flipButton.current.style.display = enabled ? "none" : "block";
   };
 
   useEffect(() => {
@@ -111,7 +93,6 @@ const Meeting = () => {
     myVideo.muted = true;
 
     socket.on("connected", async (myId) => {
-      console.log(myId);
       id = myId;
 
       console.log("User Id : " + id);
@@ -120,6 +101,7 @@ const Meeting = () => {
       try {
         stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
       } catch (error) {
+        alert("Could not get user media. Check your media devices or Refresh");
         console.error("Could not get user media", error);
       }
 
@@ -144,31 +126,32 @@ const Meeting = () => {
           }, 500);
         } else {
           setMic(true);
-          let stream;
           try {
-            stream = await navigator.mediaDevices.getUserMedia({
+            let stream = await navigator.mediaDevices.getUserMedia({
               audio: true,
             });
+
+            localStream.addTrack(stream.getTracks()[0]);
+
+            for (let userId in conn) {
+              console.log(conn[userId].getSenders());
+              conn[userId].getSenders()[0].replaceTrack(stream.getTracks()[0]);
+            }
           } catch (error) {
             console.error("Could not get user media", error);
           }
-
-          localStream.addTrack(stream.getTracks()[0]);
-
-          for (let userId in conn) {
-            console.log(conn[userId].getSenders());
-            conn[userId].getSenders()[0].replaceTrack(stream.getTracks()[0]);
-          }
         }
       });
+
       camButton.current.addEventListener("click", async () => {
+        setCam(!cam);
         console.log(localStream.getTracks());
 
         let vidTrack = localStream.getTracks().find((el) => {
           return el.kind === "video";
         });
+
         if (vidTrack) {
-          setCam(false);
           vidTrack.enabled = !vidTrack.enabled;
 
           setTimeout(() => {
@@ -176,21 +159,20 @@ const Meeting = () => {
             localStream.removeTrack(vidTrack);
           }, 500);
         } else {
-          setCam(true);
           let stream;
           try {
             stream = await navigator.mediaDevices.getUserMedia({
               video: { width: 1280, height: 720 },
             });
+
+            localStream.addTrack(stream.getTracks()[0]);
+
+            for (let userId in conn) {
+              console.log(conn[userId].getSenders());
+              conn[userId].getSenders()[1].replaceTrack(stream.getTracks()[0]);
+            }
           } catch (error) {
             console.error("Could not get user media", error);
-          }
-
-          localStream.addTrack(stream.getTracks()[0]);
-
-          for (let userId in conn) {
-            console.log(conn[userId].getSenders());
-            conn[userId].getSenders()[1].replaceTrack(stream.getTracks()[0]);
           }
         }
       });
@@ -198,8 +180,6 @@ const Meeting = () => {
       // SOCKET EVENT CALLBACKS =====================================================
       socket.on("room_created", async () => {
         console.log("Socket event callback: room_created");
-
-        isRoomCreator = true;
       });
 
       socket.on("room_joined", async () => {
@@ -217,8 +197,9 @@ const Meeting = () => {
 
         conn[userId] = rtcPeerConnection;
 
+        handleClick(userId + " joined", "success");
+
         rtcPeerConnection.ontrack = (event) => {
-          console.log(event);
           setRemoteStream(event, userId);
         };
         rtcPeerConnection.onicecandidate = (event) => {
@@ -252,7 +233,6 @@ const Meeting = () => {
       socket.on("webrtc_answer", (event, userId) => {
         console.log("Socket event callback: webrtc_answer from " + userId);
 
-        console.log(conn);
         conn[userId].setRemoteDescription(new RTCSessionDescription(event));
       });
 
@@ -270,7 +250,7 @@ const Meeting = () => {
       });
 
       socket.on("user-disconnected", (userId) => {
-        console.log(userId + " disconnected");
+        handleClick(userId + " left", "error");
 
         if (conn[userId]) conn[userId].close();
 
@@ -283,9 +263,9 @@ const Meeting = () => {
     });
   }, []);
 
-  const addVideoStream = (videoGrid, video, stream, id) => {
+  const addVideoStream = (videoGrid, video, stream, userId) => {
     video.srcObject = stream;
-    video.setAttribute("id", id);
+    video.setAttribute("id", userId);
     video.classList.add("video");
     video.addEventListener("loadedmetadata", () => {
       video.play();
