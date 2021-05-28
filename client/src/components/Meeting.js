@@ -5,7 +5,7 @@ import { makeStyles } from "@material-ui/core/styles";
 import React, { useEffect, useState, useRef } from "react";
 import { useSnackbar } from "notistack";
 
-import { IconButton } from "@material-ui/core";
+import { IconButton, Button, CircularProgress } from "@material-ui/core";
 
 import MicRoundedIcon from "@material-ui/icons/MicRounded";
 import MicOffRoundedIcon from "@material-ui/icons/MicOffRounded";
@@ -26,6 +26,8 @@ const useStyles = makeStyles({
     height: "100vh",
     display: "flex",
     flexWrap: "wrap",
+    justifyContent: "center",
+    alignItems: "center",
   },
   controls: {
     backgroundColor: "white",
@@ -36,6 +38,27 @@ const useStyles = makeStyles({
     display: "flex",
     justifyContent: "center",
     alignItems: "center",
+  },
+  loader: {
+    height: "120px",
+    width: "100vw",
+    position: "absolute",
+    bottom: 0,
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  join: {
+    textTransform: "none",
+    fontSize: "20px",
+    padding: "4px 20px",
+    marginRight: "15px",
+    fontWeight: 600,
+    transition: "0.3s ease-in-out",
+    "&:hover": {
+      backgroundColor: "rgb(0, 101, 255)",
+      color: "white",
+    },
   },
 });
 
@@ -66,13 +89,15 @@ let conn = {};
 const Meeting = () => {
   const classes = useStyles();
 
+  const [join, setJoin] = useState(-1);
+  const [loading, setLoading] = useState(true);
+  const [showControls, setShowControls] = useState(false);
+
   const [count, setCount] = useState(0);
 
   const [mic, setMic] = useState(true);
   const [cam, setCam] = useState(true);
 
-  const micButton = useRef(null);
-  const camButton = useRef(null);
   // const flipButton = useRef(null);
 
   const { enqueueSnackbar } = useSnackbar();
@@ -81,9 +106,7 @@ const Meeting = () => {
     enqueueSnackbar(message, { variant });
   };
 
-  useEffect(() => {
-    socket = io.connect("/");
-
+  useEffect(async () => {
     const url = window.location.href;
     roomId = url.split("/")[url.split("/").length - 1];
 
@@ -92,90 +115,103 @@ const Meeting = () => {
     const myVideo = document.createElement("video");
     myVideo.muted = true;
 
+    let stream;
+    try {
+      stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
+      // stream = await navigator.mediaDevices.getDisplayMedia();
+    } catch (error) {
+      alert("Could not get user media. Check your media devices or Refresh");
+      console.error("Could not get user media", error);
+    }
+
+    localStream = stream;
+    addVideoStream(videoGrid, myVideo, stream, "my-video");
+
+    setLoading(false);
+    setTimeout(() => {
+      setShowControls(true);
+    }, [1000]);
+  }, []);
+
+  const toggleMic = async (joined) => {
+    setMic((mic) => !mic);
+    console.log(localStream.getTracks());
+
+    let audTrack = localStream.getTracks().find((el) => {
+      return el.kind === "audio";
+    });
+
+    if (audTrack.readyState === "live") {
+      audTrack.enabled = !audTrack.enabled;
+
+      setTimeout(() => {
+        audTrack.stop();
+      }, 500);
+    } else {
+      try {
+        let stream = await navigator.mediaDevices.getUserMedia({
+          audio: true,
+        });
+
+        localStream.removeTrack(audTrack);
+        localStream.addTrack(stream.getTracks()[0]);
+
+        if (joined)
+          for (let userId in conn) {
+            console.log(conn[userId].getSenders());
+            conn[userId].getSenders()[0].replaceTrack(stream.getTracks()[0]);
+          }
+      } catch (error) {
+        console.error("Could not get user media", error);
+      }
+    }
+  };
+
+  const toggleCam = async (joined) => {
+    setCam((cam) => !cam);
+    console.log(localStream.getTracks());
+
+    let vidTrack = localStream.getTracks().find((el) => {
+      return el.kind === "video";
+    });
+
+    if (vidTrack.readyState === "live") {
+      vidTrack.enabled = !vidTrack.enabled;
+
+      setTimeout(() => {
+        vidTrack.stop();
+      }, 500);
+    } else {
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { width: 1280, height: 720 },
+        });
+
+        localStream.removeTrack(vidTrack);
+        localStream.addTrack(stream.getTracks()[0]);
+
+        if (joined)
+          for (let userId in conn) {
+            console.log(conn[userId].getSenders());
+            conn[userId].getSenders()[1].replaceTrack(stream.getTracks()[0]);
+          }
+      } catch (error) {
+        console.error("Could not get user media", error);
+      }
+    }
+  };
+
+  const connectToSocket = () => {
+    socket = io.connect("/");
+
     socket.on("connected", async (myId) => {
+      setJoin(1);
       id = myId;
 
       console.log("User Id : " + id);
 
-      let stream;
-      try {
-        stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
-      } catch (error) {
-        alert("Could not get user media. Check your media devices or Refresh");
-        console.error("Could not get user media", error);
-      }
-
-      localStream = stream;
-      addVideoStream(videoGrid, myVideo, stream, id);
-
       socket.emit("join-room", roomId, id);
-
-      micButton.current.addEventListener("click", async () => {
-        setMic((mic) => !mic);
-        console.log(localStream.getTracks());
-
-        let audTrack = localStream.getTracks().find((el) => {
-          return el.kind === "audio";
-        });
-
-        if (audTrack.readyState === "live") {
-          audTrack.enabled = !audTrack.enabled;
-
-          setTimeout(() => {
-            audTrack.stop();
-          }, 500);
-        } else {
-          try {
-            let stream = await navigator.mediaDevices.getUserMedia({
-              audio: true,
-            });
-
-            localStream.removeTrack(audTrack);
-            localStream.addTrack(stream.getTracks()[0]);
-
-            for (let userId in conn) {
-              console.log(conn[userId].getSenders());
-              conn[userId].getSenders()[0].replaceTrack(stream.getTracks()[0]);
-            }
-          } catch (error) {
-            console.error("Could not get user media", error);
-          }
-        }
-      });
-
-      camButton.current.addEventListener("click", async () => {
-        setCam((cam) => !cam);
-        console.log(localStream.getTracks());
-
-        let vidTrack = localStream.getTracks().find((el) => {
-          return el.kind === "video";
-        });
-
-        if (vidTrack.readyState === "live") {
-          vidTrack.enabled = !vidTrack.enabled;
-
-          setTimeout(() => {
-            vidTrack.stop();
-          }, 500);
-        } else {
-          let stream;
-          try {
-            stream = await navigator.mediaDevices.getUserMedia({
-              video: { width: 1280, height: 720 },
-            });
-
-            localStream.removeTrack(vidTrack);
-            localStream.addTrack(stream.getTracks()[0]);
-
-            for (let userId in conn) {
-              console.log(conn[userId].getSenders());
-              conn[userId].getSenders()[1].replaceTrack(stream.getTracks()[0]);
-            }
-          } catch (error) {
-            console.error("Could not get user media", error);
-          }
-        }
-      });
 
       // SOCKET EVENT CALLBACKS =====================================================
       socket.on("room_created", async () => {
@@ -261,7 +297,7 @@ const Meeting = () => {
         }
       });
     });
-  }, []);
+  };
 
   const addVideoStream = (videoGrid, video, stream, userId) => {
     video.srcObject = stream;
@@ -348,45 +384,57 @@ const Meeting = () => {
 
   return (
     <div className={classes.root}>
-      {/* <h2>MEETING</h2> */}
-      <div
-        id="video-grid"
-        className={classes.grid}
-        style={{
-          gridTemplateColumns: `repeat(auto-fill, ${
-            count > 0 ? 100 / count : 100
-          }vw)`,
-          gridAutoRows: "calc(100vh - 70px)",
-        }}
-      ></div>
-      <div className={classes.controls}>
-        <IconButton
-          ref={micButton}
-          style={{ color: mic ? "grey" : "red", marginRight: "10px" }}
-        >
-          {mic ? (
-            <MicRoundedIcon style={{ fontSize: "30px" }} />
-          ) : (
-            <MicOffRoundedIcon style={{ fontSize: "30px" }} />
-          )}
-        </IconButton>
-        <IconButton
-          ref={camButton}
-          style={{ color: cam ? "grey" : "red", marginLeft: "10px" }}
-        >
-          {cam ? (
-            <VideocamRoundedIcon style={{ fontSize: "30px" }} />
-          ) : (
-            <VideocamOffRoundedIcon style={{ fontSize: "30px" }} />
-          )}
-        </IconButton>
-        {/* <IconButton
+      <div id="video-grid" className={classes.grid}>
+        {loading ? <CircularProgress /> : null}
+      </div>
+      {showControls ? (
+        <div className={classes.controls}>
+          {join === -1 ? (
+            <Button
+              variant="outlined"
+              onClick={() => {
+                connectToSocket();
+                setJoin(0);
+              }}
+              className={classes.join}
+            >
+              Join
+            </Button>
+          ) : join === 0 ? (
+            <CircularProgress />
+          ) : null}
+          <IconButton
+            style={{ color: mic ? "grey" : "red", marginRight: "10px" }}
+            onClick={() => {
+              toggleMic(join === 1);
+            }}
+          >
+            {mic ? (
+              <MicRoundedIcon style={{ fontSize: "30px" }} />
+            ) : (
+              <MicOffRoundedIcon style={{ fontSize: "30px" }} />
+            )}
+          </IconButton>
+          <IconButton
+            style={{ color: cam ? "grey" : "red", marginLeft: "10px" }}
+            onClick={() => {
+              toggleCam(join === 1);
+            }}
+          >
+            {cam ? (
+              <VideocamRoundedIcon style={{ fontSize: "30px" }} />
+            ) : (
+              <VideocamOffRoundedIcon style={{ fontSize: "30px" }} />
+            )}
+          </IconButton>
+          {/* <IconButton
           style={{ marginLeft: "20px", display: "none" }}
           ref={flipButton}
         >
           <FlipCameraAndroidIcon style={{ fontSize: "30px" }} />
         </IconButton> */}
-      </div>
+        </div>
+      ) : null}
     </div>
   );
 };
