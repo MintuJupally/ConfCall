@@ -399,7 +399,6 @@ const Meeting = () => {
 
   const screenShare = async () => {
     if (scrSocket === null) {
-      setScrn(true);
       // const myVideo = document.createElement("video");
       // myVideo.muted = true;
 
@@ -409,6 +408,7 @@ const Meeting = () => {
         // stream = await navigator.mediaDevices.getDisplayMedia();
 
         localScreen = stream;
+        setScrn(true);
         // addVideoStream(videoGrid, myVideo, stream, "my-screen");
 
         stream.getTracks()[0].onended = () => {
