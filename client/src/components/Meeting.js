@@ -111,26 +111,26 @@ const Meeting = () => {
       socket.emit("join-room", roomId, id);
 
       micButton.current.addEventListener("click", async () => {
+        setMic((mic) => !mic);
         console.log(localStream.getTracks());
 
         let audTrack = localStream.getTracks().find((el) => {
           return el.kind === "audio";
         });
-        if (audTrack) {
-          setMic(false);
+
+        if (audTrack.readyState === "live") {
           audTrack.enabled = !audTrack.enabled;
 
           setTimeout(() => {
             audTrack.stop();
-            localStream.removeTrack(audTrack);
           }, 500);
         } else {
-          setMic(true);
           try {
             let stream = await navigator.mediaDevices.getUserMedia({
               audio: true,
             });
 
+            localStream.removeTrack(audTrack);
             localStream.addTrack(stream.getTracks()[0]);
 
             for (let userId in conn) {
@@ -144,19 +144,18 @@ const Meeting = () => {
       });
 
       camButton.current.addEventListener("click", async () => {
-        setCam(!cam);
+        setCam((cam) => !cam);
         console.log(localStream.getTracks());
 
         let vidTrack = localStream.getTracks().find((el) => {
           return el.kind === "video";
         });
 
-        if (vidTrack) {
+        if (vidTrack.readyState === "live") {
           vidTrack.enabled = !vidTrack.enabled;
 
           setTimeout(() => {
             vidTrack.stop();
-            localStream.removeTrack(vidTrack);
           }, 500);
         } else {
           let stream;
@@ -165,6 +164,7 @@ const Meeting = () => {
               video: { width: 1280, height: 720 },
             });
 
+            localStream.removeTrack(vidTrack);
             localStream.addTrack(stream.getTracks()[0]);
 
             for (let userId in conn) {
