@@ -13,9 +13,11 @@ import MicOffRoundedIcon from "@material-ui/icons/MicOffRounded";
 import VideocamRoundedIcon from "@material-ui/icons/VideocamRounded";
 import VideocamOffRoundedIcon from "@material-ui/icons/VideocamOffRounded";
 
+import ScreenShareRoundedIcon from "@material-ui/icons/ScreenShareRounded";
+import StopScreenShareRoundedIcon from "@material-ui/icons/StopScreenShareRounded";
+
 import FlipCameraAndroidIcon from "@material-ui/icons/FlipCameraAndroid";
 
-import Peer from "peerjs";
 import io from "socket.io-client";
 
 const useStyles = makeStyles({
@@ -77,14 +79,21 @@ const iceServers = {
   ],
 };
 
-let id;
 let videoGrid;
+
+let id;
+let scrId;
+
 let localStream;
+let localScreen;
 
 let socket;
+let scrSocket = null;
+
 let roomId;
 
 let conn = {};
+let scrConn = {};
 
 const Meeting = () => {
   const classes = useStyles();
@@ -97,6 +106,7 @@ const Meeting = () => {
 
   const [mic, setMic] = useState(true);
   const [cam, setCam] = useState(true);
+  const [scrn, setScrn] = useState(false);
 
   // const flipButton = useRef(null);
 
@@ -119,18 +129,18 @@ const Meeting = () => {
     try {
       stream = await navigator.mediaDevices.getUserMedia(mediaConstraints);
       // stream = await navigator.mediaDevices.getDisplayMedia();
+
+      localStream = stream;
+      addVideoStream(videoGrid, myVideo, stream, "my-video");
+
+      setLoading(false);
+      setTimeout(() => {
+        setShowControls(true);
+      }, [1000]);
     } catch (error) {
       alert("Could not get user media. Check your media devices or Refresh");
       console.error("Could not get user media", error);
     }
-
-    localStream = stream;
-    addVideoStream(videoGrid, myVideo, stream, "my-video");
-
-    setLoading(false);
-    setTimeout(() => {
-      setShowControls(true);
-    }, [1000]);
   }, []);
 
   const toggleMic = async (joined) => {
@@ -162,6 +172,7 @@ const Meeting = () => {
             conn[userId].getSenders()[0].replaceTrack(stream.getTracks()[0]);
           }
       } catch (error) {
+        alert("Could not get user media. Check your media devices or Refresh");
         console.error("Could not get user media", error);
       }
     }
@@ -197,6 +208,7 @@ const Meeting = () => {
             conn[userId].getSenders()[1].replaceTrack(stream.getTracks()[0]);
           }
       } catch (error) {
+        alert("Could not get user media. Check your media devices or Refresh");
         console.error("Could not get user media", error);
       }
     }
@@ -254,6 +266,8 @@ const Meeting = () => {
         conn[userId] = rtcPeerConnection;
 
         rtcPeerConnection.ontrack = (event) => {
+          console.log(event);
+          console.log(userId);
           setRemoteStream(event, userId);
         };
         rtcPeerConnection.onicecandidate = (event) => {
@@ -299,6 +313,279 @@ const Meeting = () => {
     });
   };
 
+  const toggleScrn = async () => {
+    setScrn((scrn) => !scrn);
+
+    if (cam) {
+      setCam((cam) => !cam);
+      console.log(localStream.getTracks());
+
+      let vidTrack = localStream.getTracks().find((el) => {
+        return el.kind === "video";
+      });
+
+      if (vidTrack.readyState === "live") {
+        vidTrack.enabled = !vidTrack.enabled;
+
+        setTimeout(async () => {
+          vidTrack.stop();
+
+          try {
+            let stream = await navigator.mediaDevices.getDisplayMedia();
+            localStream.removeTrack(vidTrack);
+            localStream.addTrack(stream.getTracks()[0]);
+
+            console.log(localStream.getTracks());
+            for (let userId in conn) {
+              console.log(conn[userId].getSenders());
+              conn[userId].getSenders()[1].replaceTrack(stream.getTracks()[0]);
+            }
+
+            stream.getTracks()[0].onended = () => {
+              setScrn(false);
+              localStream.getTracks()[1].enabled = false;
+
+              for (let userId in conn) {
+                conn[userId].getSenders()[1].track.enabled = false;
+              }
+            };
+          } catch (error) {
+            alert("Could not get display media. Try again");
+            console.error("Could not get display media", error);
+          }
+        }, 500);
+      }
+    } else {
+      let vidTrack = localStream.getTracks().find((el) => {
+        return el.kind === "video";
+      });
+
+      console.log(vidTrack);
+
+      if (vidTrack.readyState === "live") {
+        console.log(localStream.getTracks());
+        vidTrack.enabled = !vidTrack.enabled;
+        setTimeout(() => {
+          vidTrack.stop();
+        }, 500);
+      } else {
+        let stream;
+        try {
+          stream = await navigator.mediaDevices.getDisplayMedia();
+          localStream.removeTrack(vidTrack);
+          localStream.addTrack(stream.getTracks()[0]);
+
+          console.log(localStream.getTracks());
+          for (let userId in conn) {
+            console.log(conn[userId].getSenders());
+            conn[userId].getSenders()[1].replaceTrack(stream.getTracks()[0]);
+          }
+
+          stream.getTracks()[0].onended = () => {
+            setScrn(false);
+            localStream.getTracks()[1].enabled = false;
+
+            for (let userId in conn) {
+              conn[userId].getSenders()[1].track.enabled = false;
+            }
+          };
+        } catch (error) {
+          alert("Could not get display media. Try again");
+          console.error("Could not get display media", error);
+        }
+      }
+    }
+  };
+
+  const screenShare = async () => {
+    if (scrSocket === null) {
+      setScrn(true);
+      // const myVideo = document.createElement("video");
+      // myVideo.muted = true;
+
+      let stream;
+      try {
+        stream = await navigator.mediaDevices.getDisplayMedia();
+        // stream = await navigator.mediaDevices.getDisplayMedia();
+
+        localScreen = stream;
+        // addVideoStream(videoGrid, myVideo, stream, "my-screen");
+
+        stream.getTracks()[0].onended = () => {
+          setScrn(false);
+          scrSocket.disconnect();
+          scrSocket = null;
+        };
+
+        scrSocket = io.connect("/");
+
+        scrSocket.on("connected", async (myId) => {
+          setJoin(1);
+          scrId = myId;
+
+          console.log("User Id : " + scrId);
+
+          scrSocket.emit("join-room", roomId, scrId);
+
+          // SOCKET EVENT CALLBACKS =====================================================
+          scrSocket.on("room_created", async () => {
+            console.log("Socket event callback: room_created");
+          });
+
+          scrSocket.on("room_joined", async () => {
+            console.log("Socket event callback: room_joined");
+
+            scrSocket.emit("start_call", roomId, scrId);
+          });
+
+          scrSocket.on("start_call", async (userId) => {
+            console.log("Socket event callback: start_call from " + userId);
+
+            let rtcPeerConnection = new RTCPeerConnection(iceServers);
+            // addLocalTracks(rtcPeerConnection);
+            localScreen.getTracks().forEach((track) => {
+              rtcPeerConnection.addTrack(track, localScreen);
+            });
+
+            scrConn[userId] = rtcPeerConnection;
+
+            // handleClick(userId + " joined", "success");
+
+            // rtcPeerConnection.ontrack = (event) => {
+            //   setRemoteStream(event, userId);
+            // };
+            rtcPeerConnection.onicecandidate = (event) => {
+              // sendIceCandidate(event, userId);
+              if (event.candidate) {
+                scrSocket.emit(
+                  "webrtc_ice_candidate",
+                  {
+                    roomId,
+                    label: event.candidate.sdpMLineIndex,
+                    candidate: event.candidate.candidate,
+                  },
+                  scrId
+                );
+              }
+            };
+
+            // await createOffer(rtcPeerConnection, userId);
+            let sessionDescription;
+            try {
+              sessionDescription = await rtcPeerConnection.createOffer();
+              rtcPeerConnection.setLocalDescription(sessionDescription);
+
+              scrSocket.emit(
+                "webrtc_offer",
+                {
+                  type: "webrtc_offer",
+                  sdp: sessionDescription,
+                  roomId,
+                },
+                userId,
+                scrId
+              );
+            } catch (error) {
+              console.error(error);
+            }
+          });
+
+          scrSocket.on("webrtc_offer", async (event, userId) => {
+            console.log("Socket event callback: webrtc_offer from " + userId);
+
+            let rtcPeerConnection = new RTCPeerConnection(iceServers);
+            // addLocalTracks(rtcPeerConnection);
+            localScreen.getTracks().forEach((track) => {
+              rtcPeerConnection.addTrack(track, localScreen);
+            });
+
+            scrConn[userId] = rtcPeerConnection;
+
+            // rtcPeerConnection.ontrack = (event) => {
+            //   setRemoteStream(event, userId);
+            // };
+            rtcPeerConnection.onicecandidate = (event) => {
+              // sendIceCandidate(event, userId);
+              if (event.candidate) {
+                scrSocket.emit(
+                  "webrtc_ice_candidate",
+                  {
+                    roomId,
+                    label: event.candidate.sdpMLineIndex,
+                    candidate: event.candidate.candidate,
+                  },
+                  scrId
+                );
+              }
+            };
+            rtcPeerConnection.setRemoteDescription(
+              new RTCSessionDescription(event)
+            );
+
+            // await createAnswer(rtcPeerConnection, userId);
+            let sessionDescription;
+            try {
+              sessionDescription = await rtcPeerConnection.createAnswer();
+              rtcPeerConnection.setLocalDescription(sessionDescription);
+
+              scrSocket.emit(
+                "webrtc_answer",
+                {
+                  type: "webrtc_answer",
+                  sdp: sessionDescription,
+                  roomId,
+                },
+                userId,
+                scrId
+              );
+            } catch (error) {
+              console.error(error);
+            }
+          });
+
+          scrSocket.on("webrtc_answer", (event, userId) => {
+            console.log("Socket event callback: webrtc_answer from " + userId);
+
+            scrConn[userId].setRemoteDescription(
+              new RTCSessionDescription(event)
+            );
+          });
+
+          scrSocket.on("webrtc_ice_candidate", (event, userId) => {
+            console.log(
+              "Socket event callback: webrtc_ice_candidate from " + userId
+            );
+
+            // ICE candidate configuration.
+            var candidate = new RTCIceCandidate({
+              sdpMLineIndex: event.label,
+              candidate: event.candidate,
+            });
+            scrConn[userId].addIceCandidate(candidate);
+          });
+
+          scrSocket.on("user-disconnected", (userId) => {
+            if (scrConn[userId]) scrConn[userId].close();
+
+            const vidEl = document.getElementById(userId);
+            if (vidEl) {
+              vidEl.remove();
+              setCount((count) => count - 1);
+            }
+          });
+        });
+      } catch (error) {
+        alert("Could not get display media. Try again");
+        console.error("Could not get display media", error);
+      }
+    } else {
+      setScrn(false);
+      scrSocket.disconnect();
+      scrSocket = null;
+      // document.getElementById("my-screen").remove();
+    }
+  };
+
   const addVideoStream = (videoGrid, video, stream, userId) => {
     video.srcObject = stream;
     video.setAttribute("id", userId);
@@ -323,20 +610,20 @@ const Meeting = () => {
     try {
       sessionDescription = await rtcPeerConnection.createOffer();
       rtcPeerConnection.setLocalDescription(sessionDescription);
+
+      socket.emit(
+        "webrtc_offer",
+        {
+          type: "webrtc_offer",
+          sdp: sessionDescription,
+          roomId,
+        },
+        userId,
+        id
+      );
     } catch (error) {
       console.error(error);
     }
-
-    socket.emit(
-      "webrtc_offer",
-      {
-        type: "webrtc_offer",
-        sdp: sessionDescription,
-        roomId,
-      },
-      userId,
-      id
-    );
   }
 
   async function createAnswer(rtcPeerConnection, userId) {
@@ -344,20 +631,20 @@ const Meeting = () => {
     try {
       sessionDescription = await rtcPeerConnection.createAnswer();
       rtcPeerConnection.setLocalDescription(sessionDescription);
+
+      socket.emit(
+        "webrtc_answer",
+        {
+          type: "webrtc_answer",
+          sdp: sessionDescription,
+          roomId,
+        },
+        userId,
+        id
+      );
     } catch (error) {
       console.error(error);
     }
-
-    socket.emit(
-      "webrtc_answer",
-      {
-        type: "webrtc_answer",
-        sdp: sessionDescription,
-        roomId,
-      },
-      userId,
-      id
-    );
   }
 
   function setRemoteStream(event, userId) {
@@ -416,7 +703,11 @@ const Meeting = () => {
             )}
           </IconButton>
           <IconButton
-            style={{ color: cam ? "grey" : "red", marginLeft: "10px" }}
+            style={{
+              color: cam ? "grey" : "red",
+              marginLeft: "10px",
+              marginRight: "10px",
+            }}
             onClick={() => {
               toggleCam(join === 1);
             }}
@@ -427,6 +718,21 @@ const Meeting = () => {
               <VideocamOffRoundedIcon style={{ fontSize: "30px" }} />
             )}
           </IconButton>
+          {join === 1 ? (
+            <IconButton
+              style={{ color: scrn ? "grey" : "red", marginLeft: "10px" }}
+              onClick={() => {
+                // toggleScrn();
+                screenShare();
+              }}
+            >
+              {scrn ? (
+                <ScreenShareRoundedIcon style={{ fontSize: "30px" }} />
+              ) : (
+                <StopScreenShareRoundedIcon style={{ fontSize: "30px" }} />
+              )}
+            </IconButton>
+          ) : null}
           {/* <IconButton
           style={{ marginLeft: "20px", display: "none" }}
           ref={flipButton}
