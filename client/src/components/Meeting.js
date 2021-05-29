@@ -22,13 +22,15 @@ import io from "socket.io-client";
 
 const useStyles = makeStyles({
   root: {
+    height: "100vh",
     backgroundColor: "#141414",
   },
   grid: {
-    height: "100vh",
+    height: "calc(100vh - 70px)",
     display: "flex",
-    flexWrap: "wrap",
-    justifyContent: "center",
+    // flexWrap: "wrap",
+    overflowX: "auto",
+    // justifyContent: "center",
     alignItems: "center",
   },
   controls: {
@@ -141,6 +143,13 @@ const Meeting = () => {
       alert("Could not get user media. Check your media devices or Refresh");
       console.error("Could not get user media", error);
     }
+
+    window.addEventListener("wheel", (event) => {
+      event.preventDefault();
+
+      const delta = event.deltaY;
+      document.getElementById("video-grid").scrollLeft += delta * 0.5;
+    });
   }, []);
 
   const toggleMic = async (joined) => {
@@ -672,7 +681,7 @@ const Meeting = () => {
   return (
     <div className={classes.root}>
       <div id="video-grid" className={classes.grid}>
-        {loading ? <CircularProgress /> : null}
+        {loading ? <CircularProgress style={{ margin: "auto" }} /> : null}
       </div>
       {showControls ? (
         <div className={classes.controls}>
