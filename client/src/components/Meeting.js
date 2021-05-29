@@ -145,7 +145,7 @@ const Meeting = () => {
     }
 
     window.addEventListener("wheel", (event) => {
-      event.preventDefault();
+      // event.preventDefault();
 
       const delta = event.deltaY;
       document.getElementById("video-grid").scrollLeft += delta * 0.5;
@@ -179,6 +179,7 @@ const Meeting = () => {
           for (let userId in conn) {
             console.log(conn[userId].getSenders());
             conn[userId].getSenders()[0].replaceTrack(stream.getTracks()[0]);
+            console.log(conn[userId].getSenders());
           }
       } catch (error) {
         alert("Could not get user media. Check your media devices or Refresh");
@@ -313,10 +314,15 @@ const Meeting = () => {
 
         if (conn[userId]) conn[userId].close();
 
-        const vidEl = document.getElementById(userId);
+        const audEl = document.getElementById("AUD-" + userId);
+        if (audEl) {
+          audEl.remove();
+          // setCount((count) => count - 1);
+        }
+        const vidEl = document.getElementById("VID-" + userId);
         if (vidEl) {
           vidEl.remove();
-          setCount((count) => count - 1);
+          // setCount((count) => count - 1);
         }
       });
     });
@@ -576,7 +582,12 @@ const Meeting = () => {
           scrSocket.on("user-disconnected", (userId) => {
             if (scrConn[userId]) scrConn[userId].close();
 
-            const vidEl = document.getElementById(userId);
+            const audEl = document.getElementById("AUD-" + userId);
+            if (audEl) {
+              audEl.remove();
+              setCount((count) => count - 1);
+            }
+            const vidEl = document.getElementById("VID-" + userId);
             if (vidEl) {
               vidEl.remove();
               setCount((count) => count - 1);
@@ -658,9 +669,13 @@ const Meeting = () => {
 
   function setRemoteStream(event, userId) {
     console.log(event);
-    if (event.track.kind === "video") {
+    if (event.track.kind === "audio") {
+      let audio = document.createElement("audio");
+      addVideoStream(videoGrid, audio, event.streams[0], "AUD-" + userId);
+    } else if (event.track.kind === "video") {
       let video = document.createElement("video");
-      addVideoStream(videoGrid, video, event.streams[0], userId);
+      video.muted = true;
+      addVideoStream(videoGrid, video, event.streams[0], "VID-" + userId);
     }
   }
 
