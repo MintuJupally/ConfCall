@@ -59,15 +59,23 @@ io.on("connection", (socket) => {
       socket.emit("room_joined", roomId, userId);
     }
 
+    socket.on("video-stopped", () => {
+      socket.broadcast.to(roomId).emit("video-stopped", userId);
+    });
+
+    socket.on("video-started", () => {
+      socket.broadcast.to(roomId).emit("video-started", userId);
+    });
+
     socket.on("disconnect", () => {
       socket.broadcast.to(roomId).emit("user-disconnected", userId);
     });
   });
 
   // These events are emitted to all the sockets connected to the same room except the sender.
-  socket.on("start_call", (roomId, userId) => {
+  socket.on("start_call", (roomId, userId, camStatus) => {
     console.log(`Broadcasting start_call event to peers in room ${roomId}`);
-    socket.broadcast.to(roomId).emit("start_call", userId);
+    socket.broadcast.to(roomId).emit("start_call", userId, camStatus);
   });
   socket.on("webrtc_offer", (event, toId, fromId) => {
     console.log(

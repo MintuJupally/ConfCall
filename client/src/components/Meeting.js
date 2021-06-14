@@ -27,9 +27,11 @@ const useStyles = makeStyles({
   },
   grid: {
     height: "calc(100vh - 70px)",
+    width: "100vw",
     display: "flex",
-    // flexWrap: "wrap",
+    flexWrap: "wrap",
     overflowX: "auto",
+    overflowY: "hidden",
     // justifyContent: "center",
     alignItems: "center",
   },
@@ -118,7 +120,7 @@ const Meeting = () => {
     enqueueSnackbar(message, { variant });
   };
 
-  useEffect(async () => {
+  const getReady = async () => {
     const url = window.location.href;
     roomId = url.split("/")[url.split("/").length - 1];
 
@@ -133,7 +135,7 @@ const Meeting = () => {
       // stream = await navigator.mediaDevices.getDisplayMedia();
 
       localStream = stream;
-      addVideoStream(videoGrid, myVideo, stream, "my-video");
+      addVideoStream(videoGrid, myVideo, stream, "my-video", true);
 
       setLoading(false);
       setTimeout(() => {
@@ -150,6 +152,10 @@ const Meeting = () => {
       const delta = event.deltaY;
       document.getElementById("video-grid").scrollLeft += delta * 0.5;
     });
+  };
+
+  useEffect(() => {
+    getReady();
   }, []);
 
   const toggleMic = async (joined) => {
@@ -190,7 +196,6 @@ const Meeting = () => {
 
   const toggleCam = async (joined) => {
     setCam((cam) => !cam);
-    console.log(localStream.getTracks());
 
     let vidTrack = localStream.getTracks().find((el) => {
       return el.kind === "video";
@@ -201,6 +206,11 @@ const Meeting = () => {
 
       setTimeout(() => {
         vidTrack.stop();
+
+        if (id) {
+          socket.emit("video-stopped", roomId, id);
+        }
+        toggleCard("my-video", false);
       }, 500);
     } else {
       let stream;
@@ -217,10 +227,35 @@ const Meeting = () => {
             console.log(conn[userId].getSenders());
             conn[userId].getSenders()[1].replaceTrack(stream.getTracks()[0]);
           }
+
+        if (id) {
+          socket.emit("video-started", roomId, id);
+        }
+        toggleCard("my-video", true);
       } catch (error) {
         alert("Could not get user media. Check your media devices or Refresh");
         console.error("Could not get user media", error);
       }
+    }
+  };
+
+  const toggleCard = (userId, status) => {
+    let vid, prof;
+
+    if (userId === "my-video") {
+      vid = document.getElementById("video-" + userId);
+      prof = document.getElementById("prof-" + userId);
+    } else {
+      vid = document.getElementById("video-VID-" + userId);
+      prof = document.getElementById("prof-VID-" + userId);
+    }
+
+    if (status && vid.classList.contains("hidden")) {
+      vid.classList.remove("hidden");
+      prof.classList.add("hidden");
+    } else if (!status && !vid.classList.contains("hidden")) {
+      prof.classList.remove("hidden");
+      vid.classList.add("hidden");
     }
   };
 
@@ -243,11 +278,11 @@ const Meeting = () => {
       socket.on("room_joined", async () => {
         console.log("Socket event callback: room_joined");
 
-        socket.emit("start_call", roomId, id);
+        socket.emit("start_call", roomId, id, cam);
       });
 
       // SOCKET EVENT CALLBACKS =====================================================
-      socket.on("start_call", async (userId) => {
+      socket.on("start_call", async (userId, status) => {
         console.log("Socket event callback: start_call from " + userId);
 
         let rtcPeerConnection = new RTCPeerConnection(iceServers);
@@ -258,7 +293,7 @@ const Meeting = () => {
         handleClick(userId + " joined", "success");
 
         rtcPeerConnection.ontrack = (event) => {
-          setRemoteStream(event, userId);
+          setRemoteStream(event, userId, status);
         };
         rtcPeerConnection.onicecandidate = (event) => {
           sendIceCandidate(event, userId);
@@ -307,6 +342,16 @@ const Meeting = () => {
           candidate: event.candidate,
         });
         conn[userId].addIceCandidate(candidate);
+      });
+
+      socket.on("video-stopped", (userId) => {
+        console.log("video-stopped " + userId);
+        toggleCard(userId, false);
+      });
+
+      socket.on("video-started", (userId) => {
+        console.log("video-started " + userId);
+        toggleCard(userId, true);
       });
 
       socket.on("user-disconnected", (userId) => {
@@ -606,14 +651,47 @@ const Meeting = () => {
     }
   };
 
-  const addVideoStream = (videoGrid, video, stream, userId) => {
+  const addVideoStream = (videoGrid, video, stream, userId, status) => {
+    console.log(stream);
+    console.log(stream.getTracks());
+
+    let div;
+
+    video.setAttribute("id", "video-" + userId);
     video.srcObject = stream;
-    video.setAttribute("id", userId);
     video.classList.add("video");
+
     video.addEventListener("loadedmetadata", () => {
       video.play();
     });
-    videoGrid.append(video);
+
+    if (userId.startsWith("VID-") || userId === "my-video") {
+      div = document.createElement("div");
+      div.setAttribute("id", userId);
+      div.classList.add("video-wrap");
+
+      const cDiv = document.createElement("div");
+      cDiv.setAttribute("id", "prof-" + userId);
+      cDiv.classList.add("prof-card");
+      cDiv.classList.add("hidden");
+      const p = document.createElement("p");
+      p.innerText = userId;
+      p.classList.add("prof-text");
+
+      cDiv.append(p);
+
+      div.append(video);
+      div.append(cDiv);
+
+      videoGrid.append(div);
+
+      if (!status) {
+        video.classList.add("hidden");
+        cDiv.classList.remove("hidden");
+      }
+    } else {
+      videoGrid.append(video);
+    }
 
     // setCount((count) => count + 1);
   };
@@ -667,15 +745,28 @@ const Meeting = () => {
     }
   }
 
-  function setRemoteStream(event, userId) {
-    console.log(event);
+  function setRemoteStream(event, userId, status) {
+    console.log(event.streams[0]);
+    console.log(event.streams[0].getTracks());
     if (event.track.kind === "audio") {
       let audio = document.createElement("audio");
-      addVideoStream(videoGrid, audio, event.streams[0], "AUD-" + userId);
+      addVideoStream(
+        videoGrid,
+        audio,
+        event.streams[0],
+        "AUD-" + userId,
+        status
+      );
     } else if (event.track.kind === "video") {
       let video = document.createElement("video");
       video.muted = true;
-      addVideoStream(videoGrid, video, event.streams[0], "VID-" + userId);
+      addVideoStream(
+        videoGrid,
+        video,
+        event.streams[0],
+        "VID-" + userId,
+        status
+      );
     }
   }
 
