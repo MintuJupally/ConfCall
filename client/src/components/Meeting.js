@@ -302,7 +302,7 @@ const Meeting = () => {
         await createOffer(rtcPeerConnection, userId);
       });
 
-      socket.on("webrtc_offer", async (event, userId) => {
+      socket.on("webrtc_offer", async (event, userId, status) => {
         console.log("Socket event callback: webrtc_offer from " + userId);
 
         let rtcPeerConnection = new RTCPeerConnection(iceServers);
@@ -313,7 +313,7 @@ const Meeting = () => {
         rtcPeerConnection.ontrack = (event) => {
           console.log(event);
           console.log(userId);
-          setRemoteStream(event, userId);
+          setRemoteStream(event, userId, status);
         };
         rtcPeerConnection.onicecandidate = (event) => {
           sendIceCandidate(event, userId);
@@ -495,10 +495,10 @@ const Meeting = () => {
           scrSocket.on("room_joined", async () => {
             console.log("Socket event callback: room_joined");
 
-            scrSocket.emit("start_call", roomId, scrId);
+            scrSocket.emit("start_call", roomId, scrId, true);
           });
 
-          scrSocket.on("start_call", async (userId) => {
+          scrSocket.on("start_call", async (userId, status) => {
             console.log("Socket event callback: start_call from " + userId);
 
             let rtcPeerConnection = new RTCPeerConnection(iceServers);
@@ -543,14 +543,15 @@ const Meeting = () => {
                   roomId,
                 },
                 userId,
-                scrId
+                scrId,
+                true
               );
             } catch (error) {
               console.error(error);
             }
           });
 
-          scrSocket.on("webrtc_offer", async (event, userId) => {
+          scrSocket.on("webrtc_offer", async (event, userId, status) => {
             console.log("Socket event callback: webrtc_offer from " + userId);
 
             let rtcPeerConnection = new RTCPeerConnection(iceServers);
@@ -647,14 +648,15 @@ const Meeting = () => {
       setScrn(false);
       scrSocket.disconnect();
       scrSocket = null;
+
+      localScreen.getTracks().forEach((track) => {
+        track.stop();
+      });
       // document.getElementById("my-screen").remove();
     }
   };
 
   const addVideoStream = (videoGrid, video, stream, userId, status) => {
-    console.log(stream);
-    console.log(stream.getTracks());
-
     let div;
 
     video.setAttribute("id", "video-" + userId);
@@ -717,7 +719,8 @@ const Meeting = () => {
           roomId,
         },
         userId,
-        id
+        id,
+        cam
       );
     } catch (error) {
       console.error(error);

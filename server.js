@@ -77,11 +77,13 @@ io.on("connection", (socket) => {
     console.log(`Broadcasting start_call event to peers in room ${roomId}`);
     socket.broadcast.to(roomId).emit("start_call", userId, camStatus);
   });
-  socket.on("webrtc_offer", (event, toId, fromId) => {
+  socket.on("webrtc_offer", (event, toId, fromId, camStatus) => {
     console.log(
       `Broadcasting webrtc_offer event to peers in room ${event.roomId}`
     );
-    socket.broadcast.to(toId).emit("webrtc_offer", event.sdp, fromId);
+    socket.broadcast
+      .to(toId)
+      .emit("webrtc_offer", event.sdp, fromId, camStatus);
   });
   socket.on("webrtc_answer", (event, toId, fromId) => {
     console.log(
