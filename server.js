@@ -23,12 +23,10 @@ app.get("/api/call", (req, res) => {
 });
 
 app.get("/", (req, res, next) => {
-  // console.log("checking....");
   res.sendFile(path.join(__dirname, "/client/build/index.html"));
 });
 
 app.get("/:id", (req, res, next) => {
-  // console.log("checking....");
   res.sendFile(path.join(__dirname, "/client/build/index.html"));
 });
 
@@ -39,11 +37,15 @@ app.all("*", (req, res, next) => {
 io.on("connection", (socket) => {
   socket.emit("connected", socket.id);
 
-  socket.on("join-room", (roomId, userId) => {
+  socket.on("join-room", (roomId, userId, mainId) => {
     const roomClients = io.sockets.adapter.rooms.get(roomId) || { size: 0 };
     const numberOfClients = roomClients.size;
 
-    console.log(io.sockets.adapter.rooms);
+    let screenId = null;
+    if (mainId) {
+      socket.broadcast.to(mainId).emit("connect_screen", userId);
+    }
+    // console.log(io.sockets.adapter.rooms);
 
     socket.join(roomId);
     // These events are emitted only to the sender socket.
@@ -67,8 +69,27 @@ io.on("connection", (socket) => {
       socket.broadcast.to(roomId).emit("video-started", userId);
     });
 
-    socket.on("disconnect", () => {
+    socket.on("connect_screen", (fromId) => {
+      console.log("~~~ CONNECTING SCREEN " + fromId);
+      screenId = fromId;
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log(reason);
+
+      console.log(`Broadcasting user-disconnected event of user ${userId}`);
       socket.broadcast.to(roomId).emit("user-disconnected", userId);
+      console.log("------" + screenId + "---------");
+      if (screenId) {
+        console.log(`Broadcasting user-disconnected event of user ${screenId}`);
+        socket.broadcast.to(roomId).emit("user-disconnected", screenId);
+      }
+      if (reason != "client namespace disconnect") {
+        if (mainId) {
+          console.log(`Broadcasting user-disconnected event of user ${mainId}`);
+          socket.broadcast.to(roomId).emit("user-disconnected", mainId);
+        }
+      }
     });
   });
 

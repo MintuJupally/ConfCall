@@ -2,7 +2,7 @@ import "./Meeting.css";
 
 import { makeStyles } from "@material-ui/core/styles";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState } from "react";
 import { useSnackbar } from "notistack";
 
 import { IconButton, Button, CircularProgress } from "@material-ui/core";
@@ -15,8 +15,6 @@ import VideocamOffRoundedIcon from "@material-ui/icons/VideocamOffRounded";
 
 import ScreenShareRoundedIcon from "@material-ui/icons/ScreenShareRounded";
 import StopScreenShareRoundedIcon from "@material-ui/icons/StopScreenShareRounded";
-
-import FlipCameraAndroidIcon from "@material-ui/icons/FlipCameraAndroid";
 
 import io from "socket.io-client";
 
@@ -31,7 +29,6 @@ const useStyles = makeStyles({
     display: "flex",
     flexWrap: "wrap",
     overflowX: "auto",
-    overflowY: "hidden",
     // justifyContent: "center",
     alignItems: "center",
   },
@@ -250,6 +247,8 @@ const Meeting = () => {
       prof = document.getElementById("prof-VID-" + userId);
     }
 
+    if (!vid || !prof) return;
+
     if (status && vid.classList.contains("hidden")) {
       vid.classList.remove("hidden");
       prof.classList.add("hidden");
@@ -303,7 +302,10 @@ const Meeting = () => {
       });
 
       socket.on("webrtc_offer", async (event, userId, status) => {
-        console.log("Socket event callback: webrtc_offer from " + userId);
+        console.log(
+          "Socket event callback: webrtc_offer from " + userId,
+          status
+        );
 
         let rtcPeerConnection = new RTCPeerConnection(iceServers);
         addLocalTracks(rtcPeerConnection);
@@ -354,8 +356,12 @@ const Meeting = () => {
         toggleCard(userId, true);
       });
 
+      socket.on("connect_screen", (fromId) => {
+        socket.emit("connect_screen", fromId);
+      });
+
       socket.on("user-disconnected", (userId) => {
-        handleClick(userId + " left", "error");
+        console.log("socket disconnecting " + userId);
 
         if (conn[userId]) conn[userId].close();
 
@@ -367,94 +373,11 @@ const Meeting = () => {
         const vidEl = document.getElementById("VID-" + userId);
         if (vidEl) {
           vidEl.remove();
+          handleClick(userId + " left", "error");
           // setCount((count) => count - 1);
         }
       });
     });
-  };
-
-  const toggleScrn = async () => {
-    setScrn((scrn) => !scrn);
-
-    if (cam) {
-      setCam((cam) => !cam);
-      console.log(localStream.getTracks());
-
-      let vidTrack = localStream.getTracks().find((el) => {
-        return el.kind === "video";
-      });
-
-      if (vidTrack.readyState === "live") {
-        vidTrack.enabled = !vidTrack.enabled;
-
-        setTimeout(async () => {
-          vidTrack.stop();
-
-          try {
-            let stream = await navigator.mediaDevices.getDisplayMedia();
-            localStream.removeTrack(vidTrack);
-            localStream.addTrack(stream.getTracks()[0]);
-
-            console.log(localStream.getTracks());
-            for (let userId in conn) {
-              console.log(conn[userId].getSenders());
-              conn[userId].getSenders()[1].replaceTrack(stream.getTracks()[0]);
-            }
-
-            stream.getTracks()[0].onended = () => {
-              setScrn(false);
-              localStream.getTracks()[1].enabled = false;
-
-              for (let userId in conn) {
-                conn[userId].getSenders()[1].track.enabled = false;
-              }
-            };
-          } catch (error) {
-            alert("Could not get display media. Try again");
-            console.error("Could not get display media", error);
-          }
-        }, 500);
-      }
-    } else {
-      let vidTrack = localStream.getTracks().find((el) => {
-        return el.kind === "video";
-      });
-
-      console.log(vidTrack);
-
-      if (vidTrack.readyState === "live") {
-        console.log(localStream.getTracks());
-        vidTrack.enabled = !vidTrack.enabled;
-        setTimeout(() => {
-          vidTrack.stop();
-        }, 500);
-      } else {
-        let stream;
-        try {
-          stream = await navigator.mediaDevices.getDisplayMedia();
-          localStream.removeTrack(vidTrack);
-          localStream.addTrack(stream.getTracks()[0]);
-
-          console.log(localStream.getTracks());
-          for (let userId in conn) {
-            console.log(conn[userId].getSenders());
-            conn[userId].getSenders()[1].replaceTrack(stream.getTracks()[0]);
-          }
-
-          stream.getTracks()[0].onended = () => {
-            setScrn(false);
-            localStream.getTracks()[1].enabled = false;
-
-            for (let userId in conn) {
-              conn[userId].getSenders()[1].track.enabled = false;
-            }
-          };
-        } catch (error) {
-          alert("Could not get display media. Try again");
-          console.error("Could not get display media", error);
-        }
-      }
-    }
   };
 
   const screenShare = async () => {
@@ -485,7 +408,7 @@ const Meeting = () => {
 
           console.log("User Id : " + scrId);
 
-          scrSocket.emit("join-room", roomId, scrId);
+          scrSocket.emit("join-room", roomId, scrId, id);
 
           // SOCKET EVENT CALLBACKS =====================================================
           scrSocket.on("room_created", async () => {
@@ -626,6 +549,8 @@ const Meeting = () => {
           });
 
           scrSocket.on("user-disconnected", (userId) => {
+            console.log("scrSocket disconnecting " + userId);
+
             if (scrConn[userId]) scrConn[userId].close();
 
             const audEl = document.getElementById("AUD-" + userId);
