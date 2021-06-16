@@ -639,6 +639,8 @@ const Meeting = () => {
       sessionDescription = await rtcPeerConnection.createOffer();
       rtcPeerConnection.setLocalDescription(sessionDescription);
 
+      console.log("emitting " + cam);
+
       socket.emit(
         "webrtc_offer",
         {
