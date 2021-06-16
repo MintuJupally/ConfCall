@@ -222,6 +222,7 @@ const Meeting = () => {
         if (joined)
           for (let userId in conn) {
             console.log(conn[userId].getSenders());
+            console.log(userId, conn[userId].connectionState);
             conn[userId].getSenders()[1].replaceTrack(stream.getTracks()[0]);
           }
 
@@ -286,8 +287,6 @@ const Meeting = () => {
 
         let rtcPeerConnection = new RTCPeerConnection(iceServers);
         addLocalTracks(rtcPeerConnection);
-
-        console.log(rtcPeerConnection.connectionState);
 
         conn[userId] = rtcPeerConnection;
 
