@@ -287,7 +287,11 @@ const Meeting = () => {
         let rtcPeerConnection = new RTCPeerConnection(iceServers);
         addLocalTracks(rtcPeerConnection);
 
+        console.log(rtcPeerConnection.connectionState);
+
         conn[userId] = rtcPeerConnection;
+
+        console.log(conn[userId].connectionState);
 
         handleClick(userId + " joined", "success");
 
