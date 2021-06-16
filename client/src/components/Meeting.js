@@ -291,6 +291,7 @@ const Meeting = () => {
         conn[userId] = rtcPeerConnection;
 
         console.log(conn[userId].connectionState);
+        console.log("before " + cam);
 
         handleClick(userId + " joined", "success");
 
