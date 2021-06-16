@@ -159,7 +159,6 @@ const Meeting = () => {
 
   const toggleMic = async (joined) => {
     setMic((mic) => !mic);
-    console.log(localStream.getTracks());
 
     let audTrack = localStream.getTracks().find((el) => {
       return el.kind === "audio";
@@ -182,9 +181,7 @@ const Meeting = () => {
 
         if (joined)
           for (let userId in conn) {
-            console.log(conn[userId].getSenders());
             conn[userId].getSenders()[0].replaceTrack(stream.getTracks()[0]);
-            console.log(conn[userId].getSenders());
           }
       } catch (error) {
         alert("Could not get user media. Check your media devices or Refresh");
@@ -308,6 +305,10 @@ const Meeting = () => {
         rtcPeerConnection.onicecandidate = (event) => {
           sendIceCandidate(event, userId);
         };
+        rtcPeerConnection.onconnectionstatechange = (event) => {
+          console.log(event);
+          console.log(rtcPeerConnection.connectionState);
+        };
 
         await createOffer(rtcPeerConnection, userId);
       });
@@ -324,8 +325,6 @@ const Meeting = () => {
         conn[userId] = rtcPeerConnection;
 
         rtcPeerConnection.ontrack = (event) => {
-          console.log(event);
-          console.log(userId);
           setRemoteStream(event, userId, status);
         };
         rtcPeerConnection.onicecandidate = (event) => {
@@ -372,8 +371,6 @@ const Meeting = () => {
       });
 
       socket.on("user-disconnected", (userId) => {
-        console.log("socket disconnecting " + userId);
-
         if (conn[userId]) conn[userId].close();
 
         const audEl = document.getElementById("AUD-" + userId);
@@ -417,7 +414,7 @@ const Meeting = () => {
           setJoin(1);
           scrId = myId;
 
-          console.log("User Id : " + scrId);
+          console.log("Screenshare Id : " + scrId);
 
           scrSocket.emit("join-room", roomId, scrId, id);
 
@@ -687,8 +684,6 @@ const Meeting = () => {
   }
 
   function setRemoteStream(event, userId, status) {
-    console.log(event.streams[0]);
-    console.log(event.streams[0].getTracks());
     if (event.track.kind === "audio") {
       let audio = document.createElement("audio");
       addVideoStream(
