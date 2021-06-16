@@ -85,6 +85,8 @@ let videoGrid;
 let id;
 let scrId;
 
+let camera = true;
+
 let localStream;
 let localScreen;
 
@@ -261,6 +263,7 @@ const Meeting = () => {
 
   useEffect(() => {
     console.log("cam updated to ", cam);
+    camera = cam;
   }, [cam]);
 
   const connectToSocket = () => {
@@ -295,7 +298,7 @@ const Meeting = () => {
         conn[userId] = rtcPeerConnection;
 
         console.log(conn[userId].connectionState);
-        console.log("before " + cam);
+        console.log("before " + camera);
 
         handleClick(userId + " joined", "success");
 
@@ -644,7 +647,7 @@ const Meeting = () => {
       sessionDescription = await rtcPeerConnection.createOffer();
       rtcPeerConnection.setLocalDescription(sessionDescription);
 
-      console.log("emitting " + cam);
+      console.log("emitting ", camera);
 
       socket.emit(
         "webrtc_offer",
@@ -655,7 +658,7 @@ const Meeting = () => {
         },
         userId,
         id,
-        cam
+        camera
       );
     } catch (error) {
       console.error(error);
