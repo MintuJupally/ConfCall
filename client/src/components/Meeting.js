@@ -259,6 +259,10 @@ const Meeting = () => {
     }
   };
 
+  useEffect(() => {
+    console.log("cam updated to ", cam);
+  }, [cam]);
+
   const connectToSocket = () => {
     socket = io.connect("/");
 
