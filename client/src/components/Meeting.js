@@ -333,6 +333,10 @@ const Meeting = () => {
         rtcPeerConnection.setRemoteDescription(
           new RTCSessionDescription(event)
         );
+        rtcPeerConnection.onconnectionstatechange = (event) => {
+          console.log(event);
+          console.log(rtcPeerConnection.connectionState);
+        };
 
         await createAnswer(rtcPeerConnection, userId);
       });
