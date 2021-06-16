@@ -308,6 +308,9 @@ const Meeting = () => {
         rtcPeerConnection.onconnectionstatechange = (event) => {
           console.log(event);
           console.log(rtcPeerConnection.connectionState);
+          if (rtcPeerConnection.connectionState === "failed") {
+            rtcPeerConnection.restartIce();
+          }
         };
 
         await createOffer(rtcPeerConnection, userId);
