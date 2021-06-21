@@ -1,11 +1,20 @@
 import "./Meeting.css";
 
-import { makeStyles } from "@material-ui/core/styles";
+import clsx from "clsx";
+import { makeStyles, useTheme } from "@material-ui/core/styles";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useSnackbar } from "notistack";
 
-import { IconButton, Button, CircularProgress } from "@material-ui/core";
+import Messages from "./Messages";
+
+import {
+  IconButton,
+  Button,
+  CircularProgress,
+  Drawer,
+  Divider,
+} from "@material-ui/core";
 
 import MicRoundedIcon from "@material-ui/icons/MicRounded";
 import MicOffRoundedIcon from "@material-ui/icons/MicOffRounded";
@@ -16,9 +25,61 @@ import VideocamOffRoundedIcon from "@material-ui/icons/VideocamOffRounded";
 import ScreenShareRoundedIcon from "@material-ui/icons/ScreenShareRounded";
 import StopScreenShareRoundedIcon from "@material-ui/icons/StopScreenShareRounded";
 
+import ChevronLeftIcon from "@material-ui/icons/ChevronLeft";
+import ChevronRightIcon from "@material-ui/icons/ChevronRight";
+
+import SendIcon from "@material-ui/icons/Send";
+
+import ForumIcon from "@material-ui/icons/Forum";
+
 import io from "socket.io-client";
 
-const useStyles = makeStyles({
+const drawerWidth = "min(calc(100vw - 20px), 400px)";
+
+const useStyles = makeStyles((theme) => ({
+  chat: {
+    display: "flex",
+  },
+  title: {
+    flexGrow: 1,
+  },
+  hide: {
+    display: "none",
+  },
+  drawer: {
+    width: drawerWidth,
+    flexShrink: 0,
+  },
+  drawerPaper: {
+    width: drawerWidth,
+    height: "calc(100vh - 80px)",
+    margin: "5px 10px 0px 5px",
+    borderRadius: "20px",
+  },
+  drawerHeader: {
+    display: "flex",
+    alignItems: "center",
+    padding: theme.spacing(0, 1),
+    // necessary for content to be below app bar
+    ...theme.mixins.toolbar,
+    justifyContent: "flex-start",
+  },
+  content: {
+    flexGrow: 1,
+    padding: theme.spacing(3),
+    transition: theme.transitions.create("margin", {
+      easing: theme.transitions.easing.sharp,
+      duration: theme.transitions.duration.leavingScreen,
+    }),
+    marginRight: -drawerWidth,
+  },
+  contentShift: {
+    transition: theme.transitions.create("margin", {
+      easing: theme.transitions.easing.easeOut,
+      duration: theme.transitions.duration.enteringScreen,
+    }),
+    marginRight: 0,
+  },
   root: {
     height: "100vh",
     backgroundColor: "#141414",
@@ -63,7 +124,21 @@ const useStyles = makeStyles({
       color: "white",
     },
   },
-});
+  inputBox: {
+    outline: 0,
+    backgroundColor: "rgb(220,220,220)",
+    width: "300px",
+    border: 0,
+    borderRadius: "20px",
+    height: "20px",
+    resize: "none",
+    padding: "10px 15px",
+    "&::placeholder": {},
+    "&::-webkit-scrollbar": {
+      display: "none",
+    },
+  },
+}));
 
 const mediaConstraints = {
   audio: true,
@@ -98,8 +173,11 @@ let roomId;
 let conn = {};
 let scrConn = {};
 
+let conv = [];
+
 const Meeting = () => {
   const classes = useStyles();
+  const theme = useTheme();
 
   const [join, setJoin] = useState(-1);
   const [loading, setLoading] = useState(true);
@@ -107,17 +185,85 @@ const Meeting = () => {
 
   const [count, setCount] = useState(0);
 
+  const [inputString, setInputString] = useState("");
+  const [messages, setMessages] = useState([]);
+
   const [mic, setMic] = useState(true);
   const [cam, setCam] = useState(true);
   const [scrn, setScrn] = useState(false);
 
-  // const flipButton = useRef(null);
+  const [open, setOpen] = React.useState(false);
+
+  const chatBox = useRef(null);
 
   const { enqueueSnackbar } = useSnackbar();
 
   const handleClick = (message, variant) => {
     enqueueSnackbar(message, { variant });
   };
+
+  const handleDrawerOpen = () => {
+    setOpen(true);
+  };
+
+  useEffect(() => {
+    console.log(open);
+    if (open) {
+      chatBox.current.focus();
+
+      const chatScreen = document.getElementById("chat-screen");
+      if (chatScreen) {
+        console.log(chatScreen.scrollHeight);
+        chatScreen.scrollTop = chatScreen.scrollHeight;
+      }
+    }
+  }, [open]);
+
+  const handleDrawerClose = () => {
+    setOpen(false);
+  };
+
+  const handleChange = (event) => {
+    let text = event.target.value;
+    setInputString(text.trimStart());
+  };
+
+  const sendMessage = (fromId, msg) => {
+    let text;
+    if (msg) text = msg;
+    else {
+      let val = chatBox.current.value;
+      text = val.trim();
+    }
+
+    if (!fromId) socket.emit("send-message", text);
+
+    let curr = [...conv];
+    console.log(curr);
+    const newMsg = {
+      user: fromId ? fromId : "me",
+      message: text,
+      time: new Date(),
+    };
+    curr.push(newMsg);
+    conv.push(newMsg);
+    setMessages(curr);
+  };
+
+  useEffect(() => {
+    setInputString("");
+    if (chatBox.current) chatBox.current.focus();
+  }, [messages]);
+
+  useEffect(() => {
+    if (join === 1) {
+      chatBox.current.addEventListener("keyup", (event) => {
+        if (event.code === "Enter" || event.key === "Enter") {
+          if (event.target.value !== "" && !event.shiftKey) sendMessage();
+        }
+      });
+    }
+  }, [join]);
 
   const getReady = async () => {
     const url = window.location.href;
@@ -375,6 +521,10 @@ const Meeting = () => {
 
       socket.on("connect_screen", (fromId) => {
         socket.emit("connect_screen", fromId);
+      });
+
+      socket.on("incoming-message", (fromId, msg) => {
+        sendMessage(fromId, msg);
       });
 
       socket.on("user-disconnected", (userId) => {
@@ -797,6 +947,79 @@ const Meeting = () => {
         >
           <FlipCameraAndroidIcon style={{ fontSize: "30px" }} />
         </IconButton> */}
+        </div>
+      ) : null}
+
+      {join === 1 ? (
+        <div className={classes.chat}>
+          <IconButton
+            color="inherit"
+            aria-label="open drawer"
+            edge="end"
+            onClick={handleDrawerOpen}
+            className={clsx(open && classes.hide)}
+            style={{ color: "white", position: "fixed", top: 0, right: "10px" }}
+          >
+            <ForumIcon />
+          </IconButton>
+          <Drawer
+            className={classes.drawer}
+            variant="persistent"
+            anchor="right"
+            open={open}
+            classes={{
+              paper: classes.drawerPaper,
+            }}
+          >
+            <div className={classes.drawerHeader}>
+              <IconButton onClick={handleDrawerClose}>
+                {theme.direction === "rtl" ? (
+                  <ChevronLeftIcon />
+                ) : (
+                  <ChevronRightIcon />
+                )}
+              </IconButton>
+              Conversation
+            </div>
+            <Divider />
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+                height: "100%",
+                margin: "10px",
+              }}
+            >
+              <Messages messages={messages} />
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <textarea
+                  ref={chatBox}
+                  type="text"
+                  placeholder="Type a message"
+                  className={classes.inputBox}
+                  value={inputString}
+                  onChange={(val) => {
+                    handleChange(val);
+                  }}
+                ></textarea>
+                <IconButton
+                  disabled={inputString === ""}
+                  onClick={() => {
+                    sendMessage();
+                  }}
+                >
+                  <SendIcon />
+                </IconButton>
+              </div>
+            </div>
+          </Drawer>
         </div>
       ) : null}
     </div>

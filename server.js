@@ -91,6 +91,10 @@ io.on("connection", (socket) => {
         }
       }
     });
+
+    socket.on("send-message", (message) => {
+      socket.broadcast.to(roomId).emit("incoming-message", userId, message);
+    });
   });
 
   // These events are emitted to all the sockets connected to the same room except the sender.
