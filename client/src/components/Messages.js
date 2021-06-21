@@ -53,9 +53,9 @@ const Messages = ({ messages }) => {
                     whiteSpace: "pre-wrap",
                   }}
                 >
-                  {msg.message.split("\n").map((part, index) => {
+                  {msg.message.split("\n").map((part, ind) => {
                     return (
-                      <React.Fragment key={"part-" + index}>
+                      <React.Fragment key={"part-" + ind}>
                         <p
                           style={{
                             padding: 0,
@@ -83,7 +83,7 @@ const Messages = ({ messages }) => {
                   ? msg.user === "me"
                     ? "You"
                     : msg.user
-                  : msg.user !== chat[index - 1].user
+                  : msg.user !== chat[chat.length - index].user
                   ? msg.user === "me"
                     ? "You"
                     : msg.user
