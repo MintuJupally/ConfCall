@@ -262,6 +262,11 @@ const Meeting = () => {
           if (event.target.value !== "" && !event.shiftKey) sendMessage();
         }
       });
+      chatBox.current.addEventListener("keydown", (event) => {
+        if (event.code === "Enter" || event.key === "Enter") {
+          if (!event.shiftKey) event.preventDefault();
+        }
+      });
     }
   }, [join]);
 
@@ -431,7 +436,6 @@ const Meeting = () => {
         socket.emit("start_call", roomId, id, cam);
       });
 
-      // SOCKET EVENT CALLBACKS =====================================================
       socket.on("start_call", async (userId, status) => {
         console.log("Socket event callback: start_call from " + userId);
 
