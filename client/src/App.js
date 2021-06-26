@@ -3,7 +3,7 @@ import React from "react";
 import routes from "./routes";
 
 import { useRoutes } from "react-router-dom";
-import { SnackbarProvider, useSnackbar } from "notistack";
+import { SnackbarProvider } from "notistack";
 
 function App() {
   const routing = useRoutes(routes);

@@ -152,6 +152,8 @@ const iceServers = {
     { urls: "stun:stun2.l.google.com:19302" },
     { urls: "stun:stun3.l.google.com:19302" },
     { urls: "stun:stun4.l.google.com:19302" },
+    { url: "stun:stun.12connect.com:3478" },
+    { url: "stun:stun.12voip.com:3478" },
   ],
 };
 
@@ -183,7 +185,7 @@ const Meeting = () => {
   const [loading, setLoading] = useState(true);
   const [showControls, setShowControls] = useState(false);
 
-  const [count, setCount] = useState(0);
+  // const [count, setCount] = useState(0);
 
   const [inputString, setInputString] = useState("");
   const [messages, setMessages] = useState([]);
@@ -207,13 +209,11 @@ const Meeting = () => {
   };
 
   useEffect(() => {
-    console.log(open);
     if (open) {
       chatBox.current.focus();
 
       const chatScreen = document.getElementById("chat-screen");
       if (chatScreen) {
-        console.log(chatScreen.scrollHeight);
         chatScreen.scrollTop = chatScreen.scrollHeight;
       }
     }
@@ -410,7 +410,6 @@ const Meeting = () => {
   };
 
   useEffect(() => {
-    console.log("cam updated to ", cam);
     camera = cam;
   }, [cam]);
 
@@ -537,13 +536,11 @@ const Meeting = () => {
         const audEl = document.getElementById("AUD-" + userId);
         if (audEl) {
           audEl.remove();
-          // setCount((count) => count - 1);
         }
         const vidEl = document.getElementById("VID-" + userId);
         if (vidEl) {
           vidEl.remove();
           handleClick(userId + " left", "error");
-          // setCount((count) => count - 1);
         }
       });
     });
@@ -725,12 +722,10 @@ const Meeting = () => {
             const audEl = document.getElementById("AUD-" + userId);
             if (audEl) {
               audEl.remove();
-              setCount((count) => count - 1);
             }
             const vidEl = document.getElementById("VID-" + userId);
             if (vidEl) {
               vidEl.remove();
-              setCount((count) => count - 1);
             }
           });
         });
@@ -761,6 +756,21 @@ const Meeting = () => {
       video.play();
     });
 
+    if (userId !== "my-video" && userId.substring(4) !== scrId) {
+      console.log(userId, userId.substring(3), scrId);
+      video.addEventListener("dblclick", () => {
+        if (video.requestFullscreen) {
+          video.requestFullscreen();
+        } else if (video.webkitRequestFullscreen) {
+          /* Safari */
+          video.webkitRequestFullscreen();
+        } else if (video.msRequestFullscreen) {
+          /* IE11 */
+          video.msRequestFullscreen();
+        }
+      });
+    }
+
     if (userId.startsWith("VID-") || userId === "my-video") {
       div = document.createElement("div");
       div.setAttribute("id", userId);
@@ -788,8 +798,6 @@ const Meeting = () => {
     } else {
       videoGrid.append(video);
     }
-
-    // setCount((count) => count + 1);
   };
 
   // FUNCTIONS ==================================================================
