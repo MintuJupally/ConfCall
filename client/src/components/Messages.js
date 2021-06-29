@@ -35,6 +35,13 @@ const Messages = ({ messages }) => {
         .slice(0)
         .reverse()
         .map((msg, index) => {
+          const time = msg.time.toLocaleTimeString();
+          let timeString =
+            time.split(":")[0] +
+            ":" +
+            time.split(":")[1] +
+            " " +
+            time.split(" ")[1];
           return (
             <div key={"message-" + index}>
               <div
@@ -54,6 +61,7 @@ const Messages = ({ messages }) => {
                   }}
                 >
                   {msg.message.split("\n").map((part, ind) => {
+                    if (part === "") return <br key={"part-" + ind} />;
                     return (
                       <React.Fragment key={"part-" + ind}>
                         <p
@@ -69,6 +77,15 @@ const Messages = ({ messages }) => {
                       </React.Fragment>
                     );
                   })}
+                  <div
+                    style={{
+                      fontSize: "10px",
+                      color: "grey",
+                      textAlign: "right",
+                    }}
+                  >
+                    {timeString}
+                  </div>
                 </div>
               </div>
               <div

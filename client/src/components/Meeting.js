@@ -31,6 +31,7 @@ import ChevronRightIcon from "@material-ui/icons/ChevronRight";
 import SendIcon from "@material-ui/icons/Send";
 
 import ForumIcon from "@material-ui/icons/Forum";
+import PeopleAltOutlinedIcon from "@material-ui/icons/PeopleAltOutlined";
 
 import io from "socket.io-client";
 
@@ -51,6 +52,7 @@ const useStyles = makeStyles((theme) => ({
     flexShrink: 0,
   },
   drawerPaper: {
+    backgroundColor: "rgb(250,250,250)",
     width: drawerWidth,
     height: "calc(100vh - 80px)",
     margin: "5px 10px 0px 5px",
@@ -85,7 +87,8 @@ const useStyles = makeStyles((theme) => ({
     backgroundColor: "#141414",
   },
   grid: {
-    height: "calc(100vh - 70px)",
+    // height: "calc(100vh - 70px)",
+    height: "100vh",
     width: "100vw",
     display: "flex",
     flexWrap: "wrap",
@@ -94,13 +97,23 @@ const useStyles = makeStyles((theme) => ({
     alignItems: "center",
   },
   controls: {
-    backgroundColor: "white",
+    // backgroundColor: "rgb(60,60,60)",
     height: "70px",
-    width: "100vw",
+    // width: "100vw",
     position: "absolute",
     bottom: 0,
+    left: 0,
+    right: 0,
+    margin: "auto",
     display: "flex",
     justifyContent: "center",
+    alignItems: "center",
+  },
+  panel: {
+    backgroundColor: "rgb(60,60,60,0.8)",
+    borderRadius: "35px",
+    padding: "0px 30px",
+    display: "flex",
     alignItems: "center",
   },
   loader: {
@@ -118,7 +131,10 @@ const useStyles = makeStyles((theme) => ({
     padding: "4px 20px",
     marginRight: "15px",
     fontWeight: 600,
+    borderRadius: "30px",
     transition: "0.3s ease-in-out",
+    color: "white",
+    backgroundColor: "rgb(0, 82, 206)",
     "&:hover": {
       backgroundColor: "rgb(0, 101, 255)",
       color: "white",
@@ -896,84 +912,108 @@ const Meeting = () => {
       </div>
       {showControls ? (
         <div className={classes.controls}>
-          {join === -1 ? (
-            <Button
-              variant="outlined"
-              onClick={() => {
-                connectToSocket();
-                setJoin(0);
-              }}
-              className={classes.join}
-            >
-              Join
-            </Button>
-          ) : join === 0 ? (
-            <CircularProgress />
-          ) : null}
-          <IconButton
-            style={{ color: mic ? "grey" : "red", marginRight: "10px" }}
-            onClick={() => {
-              toggleMic(join === 1);
-            }}
-          >
-            {mic ? (
-              <MicRoundedIcon style={{ fontSize: "30px" }} />
-            ) : (
-              <MicOffRoundedIcon style={{ fontSize: "30px" }} />
-            )}
-          </IconButton>
-          <IconButton
-            style={{
-              color: cam ? "grey" : "red",
-              marginLeft: "10px",
-              marginRight: "10px",
-            }}
-            onClick={() => {
-              toggleCam(join === 1);
-            }}
-          >
-            {cam ? (
-              <VideocamRoundedIcon style={{ fontSize: "30px" }} />
-            ) : (
-              <VideocamOffRoundedIcon style={{ fontSize: "30px" }} />
-            )}
-          </IconButton>
-          {join === 1 ? (
+          <div className={classes.panel}>
+            {join === -1 ? (
+              <Button
+                variant="outlined"
+                onClick={() => {
+                  connectToSocket();
+                  setJoin(0);
+                }}
+                className={classes.join}
+              >
+                Join
+              </Button>
+            ) : join === 0 ? (
+              <div>
+                <CircularProgress style={{ width: "30px", height: "30px" }} />
+              </div>
+            ) : null}
             <IconButton
-              style={{ color: scrn ? "grey" : "red", marginLeft: "10px" }}
+              style={{ color: mic ? "white" : "red", marginRight: "10px" }}
               onClick={() => {
-                // toggleScrn();
-                screenShare();
+                toggleMic(join === 1);
               }}
             >
-              {scrn ? (
-                <ScreenShareRoundedIcon style={{ fontSize: "30px" }} />
+              {mic ? (
+                <MicRoundedIcon style={{ fontSize: "30px" }} />
               ) : (
-                <StopScreenShareRoundedIcon style={{ fontSize: "30px" }} />
+                <MicOffRoundedIcon style={{ fontSize: "30px" }} />
               )}
             </IconButton>
-          ) : null}
-          {/* <IconButton
+            <IconButton
+              style={{
+                color: cam ? "white" : "red",
+                marginLeft: "10px",
+                marginRight: "10px",
+              }}
+              onClick={() => {
+                toggleCam(join === 1);
+              }}
+            >
+              {cam ? (
+                <VideocamRoundedIcon style={{ fontSize: "30px" }} />
+              ) : (
+                <VideocamOffRoundedIcon style={{ fontSize: "30px" }} />
+              )}
+            </IconButton>
+            {join === 1 ? (
+              <IconButton
+                style={{ color: scrn ? "white" : "red", marginLeft: "10px" }}
+                onClick={() => {
+                  // toggleScrn();
+                  screenShare();
+                }}
+              >
+                {scrn ? (
+                  <ScreenShareRoundedIcon style={{ fontSize: "30px" }} />
+                ) : (
+                  <StopScreenShareRoundedIcon style={{ fontSize: "30px" }} />
+                )}
+              </IconButton>
+            ) : null}
+            {/* <IconButton
           style={{ marginLeft: "20px", display: "none" }}
           ref={flipButton}
         >
           <FlipCameraAndroidIcon style={{ fontSize: "30px" }} />
         </IconButton> */}
+          </div>
         </div>
       ) : null}
 
       {join === 1 ? (
         <div className={classes.chat}>
-          <IconButton
-            color="inherit"
-            aria-label="open drawer"
-            edge="end"
-            onClick={handleDrawerOpen}
-            className={clsx(open && classes.hide)}
-            style={{ color: "white", position: "fixed", top: 0, right: "10px" }}
+          <div
+            style={{
+              position: "fixed",
+              top: "10px",
+              right: "20px",
+              backgroundColor: "rgb(60,60,60,0.7)",
+              borderRadius: "30px",
+            }}
           >
-            <ForumIcon />
-          </IconButton>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="end"
+              onClick={handleDrawerOpen}
+              className={clsx(open && classes.hide)}
+              style={{ color: "white", margin: "0px 5px 0px 8px" }}
+            >
+              <PeopleAltOutlinedIcon />
+            </IconButton>
+            <IconButton
+              color="inherit"
+              aria-label="open drawer"
+              edge="end"
+              onClick={handleDrawerOpen}
+              className={clsx(open && classes.hide)}
+              style={{ color: "white", marginRight: "8px" }}
+            >
+              <ForumIcon />
+            </IconButton>
+          </div>
           <Drawer
             className={classes.drawer}
             variant="persistent"
