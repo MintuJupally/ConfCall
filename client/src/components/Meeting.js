@@ -100,7 +100,7 @@ const useStyles = makeStyles((theme) => ({
     // backgroundColor: "rgb(60,60,60)",
     height: "70px",
     // width: "100vw",
-    position: "absolute",
+    position: "fixed",
     bottom: 0,
     left: 0,
     right: 0,
@@ -926,7 +926,9 @@ const Meeting = () => {
               </Button>
             ) : join === 0 ? (
               <div>
-                <CircularProgress style={{ width: "30px", height: "30px" }} />
+                <CircularProgress
+                  style={{ width: "30px", height: "30px", margin: "0px 15px" }}
+                />
               </div>
             ) : null}
             <IconButton
