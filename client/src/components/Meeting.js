@@ -97,6 +97,7 @@ const useStyles = makeStyles((theme) => ({
     overflowX: "auto",
     // justifyContent: "center",
     alignItems: "center",
+    transition: "0.4s ease-in-out",
   },
   controls: {
     // backgroundColor: "rgb(60,60,60)",
@@ -156,6 +157,17 @@ const useStyles = makeStyles((theme) => ({
       display: "none",
     },
   },
+  user: {
+    display: "flex",
+    justifyContent: "space-between",
+    cursor: "pointer",
+    padding: "10px",
+    backgroundColor: "rgb(250,250,250)",
+    transition: "0.4s ease-in-out",
+    "&:hover": {
+      backgroundColor: "rgb(240,240,240)",
+    },
+  },
 }));
 
 const mediaConstraints = {
@@ -212,7 +224,10 @@ const Meeting = () => {
   const [cam, setCam] = useState(true);
   const [scrn, setScrn] = useState(false);
 
-  const [open, setOpen] = React.useState(false);
+  const [open, setOpen] = useState(false);
+  const [openA, setOpenA] = useState(false);
+
+  const [users, setUsers] = useState([]);
 
   const chatBox = useRef(null);
 
@@ -222,6 +237,9 @@ const Meeting = () => {
     enqueueSnackbar(message, { variant });
   };
 
+  const handleDrawerOpenA = () => {
+    setOpenA(true);
+  };
   const handleDrawerOpen = () => {
     setOpen(true);
   };
@@ -237,6 +255,9 @@ const Meeting = () => {
     }
   }, [open]);
 
+  const handleDrawerCloseA = () => {
+    setOpenA(false);
+  };
   const handleDrawerClose = () => {
     setOpen(false);
   };
@@ -461,6 +482,10 @@ const Meeting = () => {
 
         conn[userId] = rtcPeerConnection;
 
+        setUsers((curr) => {
+          return [...curr, userId];
+        });
+
         console.log(conn[userId].connectionState);
         console.log("before " + camera);
 
@@ -476,6 +501,7 @@ const Meeting = () => {
           console.log(event);
           console.log(rtcPeerConnection.connectionState);
           if (rtcPeerConnection.connectionState === "failed") {
+            console.log("Restarting Ice ...");
             rtcPeerConnection.restartIce();
           }
         };
@@ -493,6 +519,10 @@ const Meeting = () => {
         addLocalTracks(rtcPeerConnection);
 
         conn[userId] = rtcPeerConnection;
+
+        setUsers((curr) => {
+          return [...curr, userId];
+        });
 
         rtcPeerConnection.ontrack = (event) => {
           setRemoteStream(event, userId, status);
@@ -550,6 +580,14 @@ const Meeting = () => {
 
       socket.on("user-disconnected", (userId) => {
         if (conn[userId]) conn[userId].close();
+
+        setUsers((curr) => {
+          let filtered = curr.filter((el) => {
+            return el !== userId;
+          });
+          console.log(filtered);
+          return filtered;
+        });
 
         const audEl = document.getElementById("AUD-" + userId);
         if (audEl) {
@@ -1001,7 +1039,7 @@ const Meeting = () => {
               color="inherit"
               aria-label="open drawer"
               edge="end"
-              onClick={handleDrawerOpen}
+              onClick={handleDrawerOpenA}
               className={clsx(open && classes.hide)}
               style={{ color: "white", margin: "0px 5px 0px 8px" }}
             >
@@ -1018,6 +1056,72 @@ const Meeting = () => {
               <ForumIcon />
             </IconButton>
           </div>
+          <Drawer
+            className={classes.drawer}
+            variant="persistent"
+            anchor="right"
+            open={openA}
+            classes={{
+              paper: classes.drawerPaper,
+            }}
+          >
+            <div className={classes.drawerHeader}>
+              <IconButton onClick={handleDrawerCloseA}>
+                {theme.direction === "rtl" ? (
+                  <ChevronLeftIcon />
+                ) : (
+                  <ChevronRightIcon />
+                )}
+              </IconButton>
+              Attendees
+            </div>
+            <Divider />
+            <div
+              style={{
+                display: "flex",
+                flexDirection: "column",
+                height: "100%",
+                margin: "10px",
+              }}
+            >
+              <div className={classes.user}>
+                <div>{id + " (You)"}</div>
+                <div
+                  style={{
+                    width: "80px",
+                    display: "flex",
+                    justifyContent: "space-around",
+                  }}
+                >
+                  {/* <MicRoundedIcon style={{ color: "rgb(68, 165, 244)" }} /> */}
+                  <MicOffRoundedIcon style={{ color: "rgb(100,100,100)" }} />
+                  {/* <VideocamRoundedIcon style={{ color: "red" }} /> */}
+                  <VideocamOffRoundedIcon
+                    style={{ color: "rgb(100,100,100)" }}
+                  />
+                </div>
+              </div>
+              {users.map((el, index) => {
+                return (
+                  <div className={classes.user} key={"attendee-" + index}>
+                    <div>{el}</div>
+                    <div
+                      style={{
+                        width: "80px",
+                        display: "flex",
+                        justifyContent: "space-around",
+                      }}
+                    >
+                      <MicRoundedIcon style={{ color: "rgb(0,140,200)" }} />
+                      <VideocamRoundedIcon
+                        style={{ color: "rgb(0,140,200)" }}
+                      />
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </Drawer>
           <Drawer
             className={classes.drawer}
             variant="persistent"
