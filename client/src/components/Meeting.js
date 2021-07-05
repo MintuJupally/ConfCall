@@ -345,6 +345,23 @@ const Meeting = () => {
 
   useEffect(() => {
     getReady();
+
+    return () => {
+      if (localStream)
+        localStream.getTracks().forEach((track) => {
+          track.stop();
+        });
+      if (localScreen)
+        localScreen.getTracks().forEach((track) => {
+          track.stop();
+        });
+      if (socket) {
+        socket.disconnect();
+      }
+      if (scrSocket) {
+        scrSocket.disconnect();
+      }
+    };
   }, []);
 
   const toggleMic = async (joined) => {

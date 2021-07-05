@@ -1,16 +1,23 @@
 import React, { useEffect, useState } from "react";
 
-import { Typography, Button } from "@material-ui/core";
+import { Typography, Button, Snackbar } from "@material-ui/core";
 import CallIcon from "@material-ui/icons/Call";
 
 import { useNavigate } from "react-router-dom";
 
 import axios from "axios";
 
+import MuiAlert from "@material-ui/lab/Alert";
+
+const Alert = (props) => {
+  return <MuiAlert elevation={6} variant="filled" {...props} />;
+};
+
 const Home = () => {
   const navigate = useNavigate();
 
   const [roomId, setRoomId] = useState("");
+  const [open, setOpen] = useState(false);
 
   useEffect(() => {
     axios
@@ -23,6 +30,14 @@ const Home = () => {
         console.log(err.response);
       });
   }, []);
+
+  const handleClose = (event, reason) => {
+    if (reason === "clickaway") {
+      return;
+    }
+
+    setOpen(false);
+  };
 
   return (
     <div
@@ -44,12 +59,12 @@ const Home = () => {
           Conference Call
         </h1>
       </div>
-
       <div
         style={{
           dispaly: "flex",
           flexDirection: "column",
           maxWidth: "fit-content",
+          margin: "100px auto 0px auto",
         }}
       >
         <div
@@ -67,13 +82,26 @@ const Home = () => {
             <div
               style={{
                 padding: "10px 14px",
-                overflowY: "auto",
+                overflowY: "overlay",
                 backgroundColor: "rgb(0,0,0,0.1)",
               }}
             >
               <Typography style={{ whiteSpace: "nowrap" }}>{roomId}</Typography>
             </div>
-            <Button variant="outlined" style={{ borderRadius: 0 }}>
+            <Button
+              variant="outlined"
+              style={{ borderRadius: 0 }}
+              onClick={() => {
+                const el = document.createElement("textarea");
+                el.value = window.location.href + roomId;
+                document.body.appendChild(el);
+                el.select();
+                document.execCommand("copy");
+                document.body.removeChild(el);
+
+                setOpen(true);
+              }}
+            >
               COPY
             </Button>
           </div>
@@ -92,6 +120,11 @@ const Home = () => {
             START MEETING
           </Button>
         </div>
+        <Snackbar open={open} autoHideDuration={3000} onClose={handleClose}>
+          <Alert severity="success" onClose={handleClose}>
+            Copied to Clipboard
+          </Alert>
+        </Snackbar>
       </div>
     </div>
   );
