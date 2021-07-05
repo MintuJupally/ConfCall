@@ -42,7 +42,7 @@ const Home = () => {
   return (
     <div
       style={{
-        height: "100%",
+        minHeight: "100vh",
         margin: "0px 30px",
       }}
     >

@@ -335,12 +335,12 @@ const Meeting = () => {
       console.error("Could not get user media", error);
     }
 
-    window.addEventListener("wheel", (event) => {
-      // event.preventDefault();
+    // window.addEventListener("wheel", (event) => {
+    //   // event.preventDefault();
 
-      const delta = event.deltaY;
-      document.getElementById("video-grid").scrollLeft += delta * 0.5;
-    });
+    //   const delta = event.deltaY;
+    //   document.getElementById("video-grid").scrollLeft += delta * 0.5;
+    // });
   };
 
   useEffect(() => {
