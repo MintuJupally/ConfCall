@@ -35,6 +35,8 @@ import PeopleAltOutlinedIcon from "@material-ui/icons/PeopleAltOutlined";
 
 import io from "socket.io-client";
 
+import axios from "axios";
+
 const drawerWidth = "min(calc(100vw - 20px), 400px)";
 
 const useStyles = makeStyles((theme) => ({
@@ -177,11 +179,11 @@ const mediaConstraints = {
 
 const iceServers = {
   iceServers: [
-    { urls: "stun:stun.l.google.com:19302" },
-    { urls: "stun:stun1.l.google.com:19302" },
-    { urls: "stun:stun2.l.google.com:19302" },
-    { urls: "stun:stun3.l.google.com:19302" },
-    { urls: "stun:stun4.l.google.com:19302" },
+    { url: "stun:stun.l.google.com:19302" },
+    { url: "stun:stun1.l.google.com:19302" },
+    { url: "stun:stun2.l.google.com:19302" },
+    { url: "stun:stun3.l.google.com:19302" },
+    { url: "stun:stun4.l.google.com:19302" },
     { url: "stun:stun.12connect.com:3478" },
     { url: "stun:stun.12voip.com:3478" },
   ],
@@ -344,7 +346,22 @@ const Meeting = () => {
   };
 
   useEffect(() => {
-    getReady();
+    axios
+      .get("/api/turn")
+      .then((res) => {
+        const turn = res.data;
+        if (turn.length !== 0) {
+          turn.forEach((server) => {
+            iceServers.iceServers.push({ url: server });
+          });
+          console.log("TURN enabled !!!");
+        } else console.log("No TURN !!!");
+
+        getReady();
+      })
+      .catch((err) => {
+        console.log(err);
+      });
 
     return () => {
       if (localStream)

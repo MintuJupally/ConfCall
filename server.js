@@ -1,4 +1,7 @@
 const path = require("path");
+const dotenv = require("dotenv");
+
+dotenv.config();
 
 const express = require("express");
 const app = express();
@@ -20,6 +23,14 @@ app.get("/api/call", (req, res) => {
   const roomId = uuidV4();
   console.log(roomId);
   res.send(roomId);
+});
+
+app.get("/api/turn", (req, res) => {
+  let turn = [];
+  for (let key in process.env) {
+    if (key.startsWith("TURN_SERVER")) turn.push(process.env[key]);
+  }
+  res.send(turn);
 });
 
 app.get("/", (req, res, next) => {
