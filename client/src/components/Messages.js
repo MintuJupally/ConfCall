@@ -35,13 +35,10 @@ const Messages = ({ messages }) => {
         .slice(0)
         .reverse()
         .map((msg, index) => {
-          const time = msg.time.toLocaleTimeString();
-          let timeString =
-            time.split(":")[0] +
-            ":" +
-            time.split(":")[1] +
-            " " +
-            time.split(" ")[1];
+          const time = msg.time.toTimeString();
+          let timeString = time.split(":")[0] + ":" + time.split(":")[1];
+          if (parseInt(time.split(":")[0]) < 12) timeString += " AM";
+          else timeString += " PM";
           return (
             <div key={"message-" + index}>
               <div
