@@ -14,6 +14,7 @@ import {
   CircularProgress,
   Drawer,
   Divider,
+  Badge,
 } from "@material-ui/core";
 
 import MicRoundedIcon from "@material-ui/icons/MicRounded";
@@ -229,6 +230,8 @@ const Meeting = ({ user }) => {
   const [open, setOpen] = useState(false);
   const [openA, setOpenA] = useState(false);
 
+  const [messageCount, setMessageCount] = useState(0);
+
   const [users, setUsers] = useState([]);
 
   const chatBox = useRef(null);
@@ -244,6 +247,7 @@ const Meeting = ({ user }) => {
   };
   const handleDrawerOpen = () => {
     setOpen(true);
+    setMessageCount(0);
   };
 
   useEffect(() => {
@@ -257,11 +261,17 @@ const Meeting = ({ user }) => {
     }
   }, [open]);
 
+  useEffect(() => {
+    if (messageCount === 0) document.title = "Conf Call";
+    else document.title = `(${messageCount}) Conf Call`;
+  }, [messageCount]);
+
   const handleDrawerCloseA = () => {
     setOpenA(false);
   };
   const handleDrawerClose = () => {
     setOpen(false);
+    setMessageCount(0);
   };
 
   const handleChange = (event) => {
@@ -610,6 +620,7 @@ const Meeting = ({ user }) => {
 
       socket.on("incoming-message", (fromId, msg) => {
         sendMessage(fromId, msg);
+        setMessageCount((messageCount) => messageCount + 1);
       });
 
       socket.on("user-disconnected", (userId) => {
@@ -1087,7 +1098,13 @@ const Meeting = ({ user }) => {
               className={clsx(open && classes.hide)}
               style={{ color: "white", marginRight: "8px" }}
             >
-              <ForumIcon />
+              <Badge
+                color="primary"
+                invisible={messageCount === 0}
+                badgeContent={messageCount}
+              >
+                <ForumIcon />
+              </Badge>
             </IconButton>
           </div>
           <Drawer
