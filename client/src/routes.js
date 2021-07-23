@@ -1,16 +1,15 @@
 import React from "react";
 import { Navigate } from "react-router-dom";
 
-import Home from "./components/Home";
-import Meeting from "./components/Meeting";
+import Layout from "./Layout";
 
 const routes = [
   {
     path: "/",
     // element: <Layout />,
     children: [
-      { path: "/", element: <Home /> },
-      { path: "/:roomId", element: <Meeting /> },
+      { path: "/", element: <Layout /> },
+      { path: "/:roomId", element: <Layout /> },
       { path: "*", element: <Navigate to="/" replace /> },
     ],
   },

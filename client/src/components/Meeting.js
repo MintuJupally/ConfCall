@@ -209,7 +209,7 @@ let scrConn = {};
 
 let conv = [];
 
-const Meeting = () => {
+const Meeting = ({ user }) => {
   const classes = useStyles();
   const theme = useTheme();
 
